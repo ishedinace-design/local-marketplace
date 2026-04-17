@@ -39,16 +39,22 @@ const UserSchema = new mongoose.Schema({
   isVerified: { type: Boolean, default: false }
 }, { timestamps: true });
 
-UserSchema.pre('save', async function savePassword(next) {
+// CORRECTED MIDDLEWARE: Removed 'next' callback for async function
+UserSchema.pre('save', async function savePassword() {
   if (!this.isModified('password')) {
-    return next();
+    return; // Just return, don't call next()
   }
 
-  this.password = await bcrypt.hash(this.password, 10);
-  return next();
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+  } catch (err) {
+    throw err; // Re-throw to let Mongoose handle the error
+  }
 });
 
 UserSchema.methods.comparePassword = function comparePassword(candidatePassword) {
+  // Using 'this.password' requires it to be selected/available
   return bcrypt.compare(candidatePassword, this.password);
 };
 
